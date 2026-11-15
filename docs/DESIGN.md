@@ -49,6 +49,6 @@ The synthetic listener is an assumption of mine, so real numbers will differ. Ru
 ## Known limits
 
 - Picks are made two tracks ahead, so a skip only influences the third track onwards.
-- It only learns while the playing context is the chosen playlist.
+- Notes are global per track (not per playlist): a song you skip in any playlist loses score everywhere. Queue control and the ranking view only cover the chosen playlist.
 - LocalStorage is flushed to disk with a delay: use "export backup" now and then, and wait a
   few seconds before closing the client after a long session.

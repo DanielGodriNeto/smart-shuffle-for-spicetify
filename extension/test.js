@@ -61,7 +61,7 @@ const mk = (n) => { const st = newState(); sync(st, Array.from({ length: n }, (_
 {
   const st = mk(3);
   const before = st.t.t0.a;
-  assert(like(st, "t0") && st.t.t0.a === before + 5 && !like(st, "x"));
+  assert(like(st, "t0") && st.t.t0.a === before + 5 && !like(st, ""));
   sync(st, ["t0", "t1", "t2"], 1, { t0: "Musica - Artista" });
   assert.strictEqual(st.t.t0.n, "Musica - Artista");
   const share = (k) => {
@@ -71,6 +71,16 @@ const mk = (n) => { const st = newState(); sync(st, Array.from({ length: n }, (_
     return hit;
   };
   assert(share(20) > share(4), "k maior = mais agressivo");
+}
+
+// notes are global per track: unknown tracks (other playlists) are learned and liked too
+{
+  const st = mk(2);
+  update(st, "outra", "full", 1);
+  assert(!st.t.outra);
+  M.ensure(st, "outra", 1, "X - Y"); update(st, "outra", "full", 1);
+  assert(st.t.outra.a > P.prior && st.t.outra.n === "X - Y");
+  assert(like(st, "nova", 2, "N - M") && st.t.nova.a === P.prior + 5);
 }
 
 // pick: honors exclusion and anti-repeat gap

@@ -17,6 +17,7 @@ issue or a message is enough.
 
 ## What you get
 
+- One note per track, shared across playlists: it learns from everything you play, and picks the queue from the playlist you chose.
 - Smart queue: keeps 2 upcoming tracks of your chosen playlist, picked by learned score.
 - Heart button in the player bar: "I like this one" (strong boost).
 - Menu items (profile menu): use the current playlist, turn on/off, view scores,

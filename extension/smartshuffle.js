@@ -41,6 +41,13 @@
     if (!st.lastDecay) st.lastDecay = now;
   }
 
+  // Notes are global per track: a track heard outside the target playlist is still learned.
+  function ensure(st, uri, now, name) {
+    if (!st.t[uri]) st.t[uri] = { a: P.prior, b: P.prior, h: 0, plays: 0, seen: now };
+    if (name && !st.t[uri].n) st.t[uri].n = name;
+    return st.t[uri];
+  }
+
   function decay(st, now) { // taste drifts slowly; hype cools fast
     const days = (now - st.lastDecay) / DAY;
     if (days <= 0) return;
@@ -81,9 +88,9 @@
     touch(st, uri, t, now);
   }
 
-  function like(st, uri) { // like button: strong, lasting evidence (weight 5)
-    const t = st.t[uri];
-    if (!t) return false;
+  function like(st, uri, now = 0, name) { // like button: strong, lasting evidence (weight 5)
+    if (!uri) return false;
+    const t = ensure(st, uri, now, name);
     t.a += 5;
     return true;
   }
@@ -116,7 +123,7 @@
   }
 
   if (typeof module !== "undefined" && module.exports) {
-    module.exports = { classify, newState, sync, decay, update, replay, like, pick, beta, P, CFG, DAY };
+    module.exports = { ensure, classify, newState, sync, decay, update, replay, like, pick, beta, P, CFG, DAY };
     return;
   }
 
@@ -166,9 +173,10 @@
     }
 
     function learn(ev) {
-      if (!st.target || ev.ctx !== st.target) return;
+      if (!st.target) return; // set up once via the menu; then every track you play is learned
       const now = Date.now();
       decay(st, now);
+      ensure(st, ev.uri, now, ev.name + " - " + ev.artist);
       if (ev.repeatStreak > 1) replay(st, ev.uri, 1, now);
       else update(st, ev.uri, ev.outcome, now);
       saveState();
@@ -245,7 +253,7 @@
       try {
         new S.Playbar.Button(tr("Smart Shuffle: I like this one", "Smart Shuffle: gostei desta"), "heart", () => {
           const s = snapshot();
-          if (!s || s.ctx !== st.target || !like(st, s.uri)) return toast(tr("Smart Shuffle: only works on the target playlist", "Smart Shuffle: só vale para a playlist alvo"));
+          if (!s || !st.target || !like(st, s.uri, Date.now(), s.name + " - " + s.artist)) return toast(tr("Smart Shuffle: set up a playlist first", "Smart Shuffle: escolha uma playlist primeiro"));
           saveState();
           toast(tr("Smart Shuffle: liked ", "Smart Shuffle: gostei de ") + s.name);
         });
@@ -339,7 +347,7 @@
         const s = PA.getState();
         const c = s && s.context && s.context.uri;
         if (!c || !c.includes(":playlist:")) throw new Error("play a track from the target playlist first");
-        st = Object.assign(newState(), { target: c, enabled: st.enabled });
+        st.target = c; // keep all notes: they belong to tracks, not to playlists
         await loadPlaylist();
         return { target: c, tracks: st.uris.length };
       },
