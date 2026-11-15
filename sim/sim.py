@@ -24,6 +24,7 @@ class Params:
     probation: int = 3      # probation plays for a new track
     p_new: float = 0.1      # chance to draw a probation track
     gain: float = 3.0       # evidence strength per play (confidence weighting)
+    rank: bool = False      # weight by rank of the sampled theta instead of its value
 
 
 class Shuffler:
@@ -63,7 +64,14 @@ class Shuffler:
         if rng.random() < p.eps:
             return int(rng.choice(np.flatnonzero(elig)))
         theta = rng.beta(self.a, self.b)
-        w = theta ** p.k * (1.0 + np.minimum(self.h, p.hype_cap))
+        if p.rank:
+            th = np.where(elig, theta, -1.0)
+            order = np.argsort(np.argsort(th))  # 0 = lowest
+            n_el = int(elig.sum())
+            q = np.clip((order - (len(th) - n_el)) / max(1, n_el - 1), 0.0, 1.0)
+            w = q ** p.k * (1.0 + np.minimum(self.h, p.hype_cap))
+        else:
+            w = theta ** p.k * (1.0 + np.minimum(self.h, p.hype_cap))
         w[~elig] = 0.0
         return int(rng.choice(len(w), p=w / w.sum()))
 

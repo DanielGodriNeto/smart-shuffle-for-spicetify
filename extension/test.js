@@ -93,6 +93,18 @@ const mk = (n) => { const st = newState(); sync(st, Array.from({ length: n }, (_
   assert.strictEqual(pick(st, rng, 100 * DAY), "t9");
 }
 
+// relative ranking: a uniformly low (skip-heavy) listener picks the same as a happy one
+{
+  const share = (shift) => {
+    const s2 = mk(40), r = seeded(11); s2.k = 12; s2.t.t0.a += 6;
+    for (const u of s2.uris) s2.t[u].b += shift;
+    let hit = 0;
+    for (let i = 0; i < 600; i++) { s2.rp = []; if (pick(s2, r, 0) === "t0") hit++; }
+    return hit;
+  };
+  assert(share(0) > 60 && share(8) > 60, "rank-based pick must not collapse when all scores are low");
+}
+
 // mini-simulation (same synthetic listener as sim/): smart must clearly beat random (~30%)
 {
   const run = (smart, seed) => {

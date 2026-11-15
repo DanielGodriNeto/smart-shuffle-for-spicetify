@@ -26,7 +26,7 @@ Three or more skips in the last five plays are treated as a bad mood and weigh m
 ## Selection
 
 - Each track has a Beta(a, b) belief about "how much I like it" (prior Beta(2,2); new tracks Beta(3,2)).
-- Thompson sampling: draw theta from each Beta, pick proportionally to `theta^k * (1 + hype)`.
+- Thompson sampling: draw theta from each Beta, then rank the draws among eligible tracks (0 = worst, 1 = best) and pick proportionally to `rank^k * (1 + hype)`. Only the order matters, never the absolute level, so a listener who skips a lot does not push every score towards the bottom.
 - `k` is the aggressiveness (4 gentle, 12 default, 20 radical).
 - Counts decay slowly towards the prior (half-life 120 days) because taste drifts.
 - Safety nets: 5% uniform picks, a 30-play anti-repeat gap, forced revival of anything unplayed

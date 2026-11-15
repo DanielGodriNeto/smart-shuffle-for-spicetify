@@ -103,7 +103,13 @@
     const prob = elig.filter((u) => st.t[u].plays < P.probation);
     if (prob.length && rng() < P.pNew) return rnd(prob);
     if (rng() < P.eps) return rnd(elig);
-    const w = elig.map((u) => { const t = st.t[u]; return Math.pow(beta(t.a, t.b, rng), st.k || P.k) * (1 + Math.min(t.h, P.hypeCap)); });
+    // Relative (Elo-like) selection: weight depends on the RANK of each sampled score among the
+    // eligible tracks, never on its absolute level, so a skip-heavy listener does not drift to the floor.
+    const th = elig.map((u) => beta(st.t[u].a, st.t[u].b, rng));
+    const order = th.map((x, i) => i).sort((i, j) => th[i] - th[j]);
+    const q = new Array(elig.length);
+    order.forEach((i, pos) => { q[i] = elig.length > 1 ? pos / (elig.length - 1) : 1; });
+    const w = elig.map((u, i) => Math.pow(q[i], st.k || P.k) * (1 + Math.min(st.t[u].h, P.hypeCap)));
     let r = rng() * w.reduce((s, x) => s + x, 0);
     for (let i = 0; i < elig.length; i++) { r -= w[i]; if (r <= 0) return elig[i]; }
     return elig[elig.length - 1];
@@ -268,6 +274,19 @@
         try { await navigator.clipboard.writeText(window.SmartShuffle.exportJson()); toast(tr("Backup copied to clipboard", "Backup copiado para a área de transferência")); }
         catch (e) { toast(tr("Could not copy; use SmartShuffle.exportJson() in the console", "Não consegui copiar; use SmartShuffle.exportJson() no console")); }
       });
+      add(tr("Smart Shuffle: export CSV (spreadsheet)", "Smart Shuffle: exportar CSV (planilha)"), false, (self) => {
+        self.setState(false);
+        try {
+          const d = window.SmartShuffle.exportCsv(), day = new Date().toISOString().slice(0, 10);
+          [["ranking", d.ranking], ["history", d.history]].forEach(([n, txt]) => {
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(new Blob(["\ufeff" + txt], { type: "text/csv;charset=utf-8" }));
+            a.download = "smartshuffle-" + n + "-" + day + ".csv";
+            document.body.appendChild(a); a.click(); a.remove();
+          });
+          toast(tr("CSV files saved to your Downloads folder", "Arquivos CSV salvos na pasta Downloads"));
+        } catch (e) { toast(tr("CSV export failed", "Falha ao exportar CSV")); }
+      });
       let armed = 0;
       add(tr("Smart Shuffle: reset scores (click twice)", "Smart Shuffle: resetar notas (2 cliques)"), false, (self) => {
         self.setState(false);
@@ -284,13 +303,13 @@
         const r = el("div", "display:grid;grid-template-columns:28px 1fr 90px;gap:12px;align-items:center;padding:6px 12px;border-radius:var(--encore-corner-radius-base,4px)");
         r.onmouseenter = () => { r.style.background = T.hover; };
         r.onmouseleave = () => { r.style.background = "transparent"; };
-        r.appendChild(el("span", "color:" + T.sub + ";text-align:right;font-variant-numeric:tabular-nums", String(rank)));
+        r.appendChild(el("span", "color:" + T.sub + ";text-align:right;font-variant-numeric:tabular-nums", String(x.pos)));
         const col = el("div", "min-width:0");
         col.appendChild(el("div", "color:" + T.text + ";font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis", title + (x.hype > 0.1 ? "  \u{1F525}" : "")));
         col.appendChild(el("div", "color:" + T.sub + ";font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis", rest.join(" - ")));
         r.appendChild(col);
         const bar = el("div", "height:4px;border-radius:2px;background:" + T.track);
-        bar.appendChild(el("div", "height:100%;border-radius:2px;background:" + T.accent + ";width:" + Math.round(x.nota * 100) + "%"));
+        bar.appendChild(el("div", "height:100%;border-radius:2px;background:" + T.accent + ";width:" + Math.max(3, Math.round(x.pct * 100)) + "%"));
         r.appendChild(bar);
         return r;
       }
@@ -327,7 +346,13 @@
       enable: () => { st.enabled = true; lastLoad = 0; saveState(); return "ligado"; },
       disable: () => { st.enabled = false; saveState(); return "desligado"; },
       reset: () => { st = Object.assign(newState(), { target: st.target, enabled: st.enabled }); lastLoad = 0; saveState(); return loadPlaylist(); },
-      scores: () => st.uris.map((u) => ({ uri: u, nome: st.t[u].n, nota: +mean(st.t[u]).toFixed(3), hype: +st.t[u].h.toFixed(2), plays: st.t[u].plays })).sort((x, y) => y.nota - x.nota),
+      scores: () => st.uris.map((u) => ({ uri: u, nome: st.t[u].n, nota: +mean(st.t[u]).toFixed(3), hype: +st.t[u].h.toFixed(2), plays: st.t[u].plays })).sort((x, y) => y.nota - x.nota).map((x, i, a) => Object.assign(x, { pos: i + 1, pct: a.length > 1 ? 1 - i / (a.length - 1) : 1 })),
+      exportCsv: () => {
+        const q = (v) => '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"';
+        const rank = ["position,name,uri,percentile,plays,hype,a,b"].concat(window.SmartShuffle.scores().map((x) => [x.pos, q(x.nome), x.uri, x.pct.toFixed(3), x.plays, x.hype, st.t[x.uri].a.toFixed(2), st.t[x.uri].b.toFixed(2)].join(",")));
+        const hist = ["time,name,artist,uri,outcome,played_ms,last_pct,duration_ms,jump,repeat_streak"].concat(log.map((e) => [new Date(e.ts).toISOString(), q(e.name), q(e.artist), e.uri, e.outcome, e.playedMs, e.lastPct, e.dur, e.jump, e.repeatStreak].join(",")));
+        return { ranking: rank.join("\r\n"), history: hist.join("\r\n") };
+      },
       status: () => ({ ativo: st.enabled, alvo: st.target, faixas: st.uris.length, eventos: log.length }),
     };
     initUi();

@@ -21,6 +21,8 @@ issue or a message is enough.
 - Heart button in the player bar: "I like this one" (strong boost).
 - Menu items (profile menu): use the current playlist, turn on/off, view scores,
   aggressiveness (gentle / default / radical), export backup, reset.
+- Relative ranking (Elo-like): tracks are compared with each other, so many skips never push everything to a "floor"; the scores view shows position and percentile.
+- Export CSV (ranking + listening history) for spreadsheets, saved to your Downloads folder, so your data outlives the extension.
 - UI built with the client's own design tokens, so it looks native in light/dark themes.
 - 100% local: data stays in the client's local storage. No network calls, no telemetry.
 
