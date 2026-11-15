@@ -348,9 +348,10 @@
       reset: () => { st = Object.assign(newState(), { target: st.target, enabled: st.enabled }); lastLoad = 0; saveState(); return loadPlaylist(); },
       scores: () => st.uris.map((u) => ({ uri: u, nome: st.t[u].n, nota: +mean(st.t[u]).toFixed(3), hype: +st.t[u].h.toFixed(2), plays: st.t[u].plays })).sort((x, y) => y.nota - x.nota).map((x, i, a) => Object.assign(x, { pos: i + 1, pct: a.length > 1 ? 1 - i / (a.length - 1) : 1 })),
       exportCsv: () => {
-        const q = (v) => '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"';
-        const rank = ["position,name,uri,percentile,plays,hype,a,b"].concat(window.SmartShuffle.scores().map((x) => [x.pos, q(x.nome), x.uri, x.pct.toFixed(3), x.plays, x.hype, st.t[x.uri].a.toFixed(2), st.t[x.uri].b.toFixed(2)].join(",")));
-        const hist = ["time,name,artist,uri,outcome,played_ms,last_pct,duration_ms,jump,repeat_streak"].concat(log.map((e) => [new Date(e.ts).toISOString(), q(e.name), q(e.artist), e.uri, e.outcome, e.playedMs, e.lastPct, e.dur, e.jump, e.repeatStreak].join(",")));
+        // Quote every field; prefix ' when a value could be read as a spreadsheet formula (CSV injection).
+        const q = (v) => { let t = String(v == null ? "" : v); const c = t.charCodeAt(0); if ("=+-@".includes(t[0] || "x") || c === 9 || c === 13) t = "'" + t; return '"' + t.replace(/"/g, '""') + '"'; };
+        const rank = ["position,name,uri,percentile,plays,hype,a,b"].concat(window.SmartShuffle.scores().map((x) => [x.pos, q(x.nome), q(x.uri), x.pct.toFixed(3), x.plays, x.hype, st.t[x.uri].a.toFixed(2), st.t[x.uri].b.toFixed(2)].join(",")));
+        const hist = ["time,name,artist,uri,outcome,played_ms,last_pct,duration_ms,jump,repeat_streak"].concat(log.map((e) => [new Date(e.ts).toISOString(), q(e.name), q(e.artist), q(e.uri), q(e.outcome), e.playedMs, e.lastPct, e.dur, e.jump, e.repeatStreak].join(",")));
         return { ranking: rank.join("\r\n"), history: hist.join("\r\n") };
       },
       status: () => ({ ativo: st.enabled, alvo: st.target, faixas: st.uris.length, eventos: log.length }),
