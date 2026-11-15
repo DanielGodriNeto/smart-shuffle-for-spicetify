@@ -44,7 +44,7 @@ compares strategies. Average over 5 seeds, share of plays from the listener's tr
 | Smart (default, k=12) | ~0.56 | 0.43 |
 
 The synthetic listener is an assumption of mine, so real numbers will differ. Run
-`python sim/sim.py --grid` (needs numpy) to reproduce, `node extension/test.js` for the unit tests.
+`python sim/sim.py` (needs numpy) to reproduce, `node extension/test.js` for the unit tests.
 
 ## Known limits
 
